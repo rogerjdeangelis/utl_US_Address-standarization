@@ -1,79 +1,134 @@
 # utl_US_Address-standarization
-US address standarization.  
-    Standardizing Addresses
+    Parse us postal addresses into components
 
-    SAS/WPS/R SAS/WPS/Python:
+    see github
+    https://tinyurl.com/y7au8ple
+    https://github.com/rogerjdeangelis/utl_US_address-standardization/blob/master/utl_US_address-standarization.sas
 
-    US address standarization
+    see
+    https://tinyurl.com/yddmy7rw
+    https://communities.sas.com/t5/SAS-Statistical-Procedures/Efficient-code-for-split-street-address-information/m-p/478572
 
-    SAS/WPS/Python: Address standarization
-
-    github
-    https://github.com/rogerjdeangelis/utl_US_address-standarization
+    see
+    https://goo.gl/zuvHFU
+    https://communities.sas.com/t5/Base-SAS-Programming/Separate-Apt-information-from-Street-information/m-p/363139
 
     inspired by
     http://tinyurl.com/jmfxmg9
     https://communities.sas.com/t5/Base-SAS-Programming/Distinguishing-an-actual-City-value-rather-than-a-false-positive/m-p/322975
 
-    see
-    https://goo.gl/DR99j4
-    https://communities.sas.com/t5/Base-SAS-Programming/Standardizing-Addresses/m-p/429255
-
     The python package below is not a panacea.
     You still need to apply rules to clean up
-    indeterminate addresses.
-
-    But I have found the following package to
-    be very useful for US addresses. They may have other
-    languages.
-
-    HAVE (send it the entire address as one string, or
-    just the text without city, state and postal code.
-    Other tools to fix city, state and zip if you can hand parse.)
-    them.
+    indeterminate.  It also handles recipiient.
 
 
-    ==============================================================
+    INPUT
+    =====
 
-    HAVE
-    ====
+     d:/txt/utl_parse_addresses_into_components.txt
 
-    ENROLLMENT GROUP 39 E COCONUT ST APT 2 Chicago IL 20906
-
-
-    WANT
-    ====
-
-    [
-    (u'ENROLLMENT', 'Recipient'),
-    (u'GROUP', 'Recipient'),
-    (u'39', 'AddressNumber'),
-    (u'E', 'StreetNamePreDirectional'),
-    (u'COCONUT', 'StreetName'),
-    (u'ST', 'StreetNamePostType'),
-    (u'APT', 'OccupancyType')
-    (u'2\n', 'OccupancyIdentifier'),
-    (u'Chicago\n', 'CityName')
-    (u'IL\n', 'StateName')
-    (u'20906\n', 'PostalCode')
-    ]
+       REC1 39 E COCONUT ST APT 2 CHICAGO IL 20906
+       REC2 22 EAST STREET APT 2A MIDLAND IL 20906
+       REC3 BOX 1422 HOLLYWOOD CA 20906
 
 
-    SOLUTION
+    EXAMPLE OUTPUT
+    --------------
 
-    * the Python USADDRESS package can do much more than
-    this. But lets see if it can parse the 6 permutations
-    of the same address below. I have already used PERL
-    to do some translations , ie East to E, Street to ST, THIRD to 3rd
-    floor to FL.
+       REC1[
+       (u'39', 'AddressNumber'),
+       (u'E', 'StreetNamePreDirectional'),
+       (u'COCONUT', 'StreetName'),
+       (u'ST', 'StreetNamePostType'),
+       (u'APT', 'OccupancyType'),
+       (u'2', 'OccupancyIdentifier'),
+       (u'CHICAGO', 'PlaceName'),
+       (u'IL', 'StateName'),
+       (u'20906\n', 'ZipCode')]
 
-    %utl_submit_py64(%nrbquote(
-    fo = open('d:/txt/KeyBadAdrFix.txt', 'w');
+
+    PROCESS
+    =======
+
+
+    %utlfkil(d:/txt/utl_parse_addresses_into_components_out.txt); * delete;
+
+    %utl_submit_wps64("
+    options set=PYTHONHOME 'C:\Progra~1\Python~1.5\';
+    options set=PYTHONPATH 'C:\Progra~1\Python~1.5\lib\';
+    libname sd1 'd:/sd1';
+    proc python;
+    submit;
+    fo = open('d:/txt/utl_parse_addresses_into_components_out.txt', 'w');
     import usaddress;
-    for line in open('d:/txt/KeyBadAdr.txt'):;
-    .    addr=line[11:];
-    .    key=line[0:11];
+    for line in open('d:/txt/utl_parse_addresses_into_components.txt'):;
+    .    addr=line[4:];
+    .    key=line[0:4];
     .    res=key + str(usaddress.parse(addr)) + '\n';
     .    lyn=str(addr);
     .    fo.write(str(res));
-    ));
+    endsubmit;
+    run;quit;
+    ");
+
+
+    OUTPUT  (reformatted)
+    ======
+
+       REC1[
+       (u'39', 'AddressNumber'),
+       (u'E', 'StreetNamePreDirectional'),
+       (u'COCONUT', 'StreetName'),
+       (u'ST', 'StreetNamePostType'),
+       (u'APT', 'OccupancyType'),
+       (u'2', 'OccupancyIdentifier'),
+       (u'CHICAGO', 'PlaceName'),
+       (u'IL', 'StateName'),
+       (u'20906\n', 'ZipCode')]
+
+       REC2[(u'22', 'AddressNumber'),
+       (u'EAST', 'StreetName'),
+       (u'STREET', 'StreetNamePostType'),
+       (u'APT', 'OccupancyType'),
+       (u'2A', 'OccupancyIdentifier'),
+       (u'MIDLAND', 'PlaceName'),
+       (u'IL', 'StateName'),
+       (u'20906\n', 'ZipCode')]
+
+       REC3[(u'BOX', 'USPSBoxType'),
+       (u'1422', 'USPSBoxID'),
+       (u'HOLLYWOOD', 'PlaceName'),
+       (u'CA', 'StateName'),
+       (u'20906\n', 'ZipCode')]
+
+    *                _              _       _
+     _ __ ___   __ _| | _____    __| | __ _| |_ __ _
+    | '_ ` _ \ / _` | |/ / _ \  / _` |/ _` | __/ _` |
+    | | | | | | (_| |   <  __/ | (_| | (_| | || (_| |
+    |_| |_| |_|\__,_|_|\_\___|  \__,_|\__,_|\__\__,_|
+
+    ;
+
+    data _null_;
+     length address $64;
+     file "d:/txt/utl_parse_addresses_into_components.txt";
+     input;
+     address=_infile_ ;
+     put address;
+    cards4;
+    REC1 39 E COCONUT ST APT 2 CHICAGO IL 20906
+    REC2 22 EAST STREET APT 2A MIDLAND IL 20906
+    REC3 BOX 1422 HOLLYWOOD CA 20906
+    ;;;;
+    run;quit;
+
+    *          _       _   _
+     ___  ___ | |_   _| |_(_) ___  _ __
+    / __|/ _ \| | | | | __| |/ _ \| '_ \
+    \__ \ (_) | | |_| | |_| | (_) | | | |
+    |___/\___/|_|\__,_|\__|_|\___/|_| |_|
+
+    ;
+
+    see process
+
